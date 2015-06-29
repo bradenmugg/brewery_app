@@ -22,7 +22,7 @@ class Find_Beers
 
   def get_data
     brewery_db = BreweryDB::Client.new do |config|
-        config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
+      config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
     end
     puts "Enter the name of the beer you would like to use:"
     key = gets.chomp
@@ -32,22 +32,58 @@ class Find_Beers
     result = (first_fifty[0]).to_h
     beer_in.id = result["id"]
     beer_in.name = result["name"]
-    beer_in.abv = result["abv"]
-    beer_in.ibu = result["ibu"]
+    beer_in.abv = result["abv"].to_f
+    beer_in.ibu = result["ibu"].to_i
     beer_in.style = result["style"]["id"]
     self.user_beer = beer_in
     puts beer_in.style
+    puts beer_in.ibu
+    puts beer_in.abv
   end
 
   def search_abv
     puts "ABV"
     brewery_db = BreweryDB::Client.new do |config|
-        config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
+      config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
     end
     self.abvs = []
     count = 0
-    beers_abv = brewery_db.beers.all(abv: "#{self.user_beer.abv}", styleId: "#{self.user_beer.style}", withBreweries: "Y").first(100)
+    abv = self.user_beer.abv.to_f
+    abv_low = abv - 0.3
+    abv_high = abv + 0.3
+    beers_abv = brewery_db.beers.all(abv: "#{abv_low},#{abv_high}", styleId: "#{self.user_beer.style}", withBreweries: "Y").first(100)
     beers_abv.each do |x|
+      hash = x.to_h
+      beer_in = Beer.new
+      beer_in.id = hash["id"]
+      beer_in.name = hash["name"]
+      beer_in.abv = hash["abv"]
+      beer_in.ibu = hash["ibu"]
+      style = hash["style"]
+      unless style.nil?
+        beer_in.style = style["id"]
+      end
+      beer_in.hash = hash
+      brewery = hash["breweries"]
+      unless brewery.nil?
+        beer_in.brewery = brewery[0].to_h["name"]
+      end
+      self.abvs.push(beer_in)
+      puts beer_in.name
+    end
+  end
+
+  def search_hops
+    puts "IBU"
+    brewery_db = BreweryDB::Client.new do |config|
+      config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
+    end
+    self.ibus = []
+    beers_ibu = []
+    ibu_low = (self.user_beer.ibu.to_i - 5)
+    ibu_high = (self.user_beer.ibu.to_i + 5)
+    beers_ibu = brewery_db.beers.all(ibu: "#{ibu_low},#{ibu_high}", styleId: "#{self.user_beer.style}", withBreweries: "Y").first(100)
+    beers_ibu.each do |x|
       hash = x.to_h
       beer_in = Beer.new
       beer_in.id = hash["id"]
@@ -60,43 +96,16 @@ class Find_Beers
       unless brewery.nil?
         beer_in.brewery =brewery[0].to_h["name"]
       end
-      self.abvs.push(beer_in)
+      self.ibus.push(beer_in)
       puts beer_in.name
     end
   end
-
-def search_hops
-  puts "IBU"
-  brewery_db = BreweryDB::Client.new do |config|
-      config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
-  end
-  self.ibus = []
-  beers_ibu = []
-  ibu_low = (self.user_beer.ibu.to_i - 3)
-  ibu_high = (self.user_beer.ibu.to_i + 3)
-  beers_ibu = brewery_db.beers.all(ibu: "#{ibu_low},#{ibu_high}", styleId: "#{self.user_beer.style}", withBreweries: "Y").first(100)
-  beers_ibu.each do |x|
-    hash = x.to_h
-    beer_in = Beer.new
-    beer_in.id = hash["id"]
-    beer_in.name = hash["name"]
-    beer_in.abv = hash["abv"]
-    beer_in.ibu = hash["ibu"]
-    beer_in.style = hash["style"]["id"]
-    beer_in.hash = hash
-    brewery = hash["breweries"]
-    unless brewery.nil?
-      beer_in.brewery =brewery[0].to_h["name"]
-    end
-    self.ibus.push(beer_in)
-  end
-end
 
 
   def search_ibu
     puts "IBU"
     brewery_db = BreweryDB::Client.new do |config|
-        config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
+      config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
     end
     self.ibus = []
     beers_ibu = []
@@ -124,8 +133,29 @@ end
   end
 
   def search_style
+    puts "STYLE"
+    brewery_db = BreweryDB::Client.new do |config|
+      config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
+    end
     self.styles = []
     beers_style = []
+    beers_style = brewery_db.beers.all(styleId: "#{self.user_beer.style}", withBreweries: "Y").first(100)
+    beers_style.each do |x|
+      hash = x.to_h
+      beer_in = Beer.new
+      beer_in.id = hash["id"]
+      beer_in.name = hash["name"]
+      beer_in.abv = hash["abv"]
+      beer_in.ibu = hash["ibu"]
+      beer_in.style = hash["style"]["id"]
+      beer_in.hash = hash
+      brewery = hash["breweries"]
+      unless brewery.nil?
+        beer_in.brewery = brewery[0].to_h["name"]
+      end
+      self.styles.push(beer_in)
+    end
+  end
 
   def compare
     self.chosen_one = []
@@ -146,16 +176,52 @@ end
       puts "#{x.brewery} #{x.name}"
     end
   end
+
+  def print_styles
+    self.chosen_one = []
+    self.styles.each do |x|
+      self.chosen_one.push(x)
+    end
+    self.chosen_one.shuffle.first(10).each do |x|
+      puts "#{x.brewery} #{x.name}"
+    end
+  end
+
+  def print_abv
+    self.chosen_one = []
+    self.abvs.each do |x|
+      self.chosen_one.push(x)
+    end
+    self.chosen_one.shuffle.first(10).each do |x|
+      puts "#{x.brewery} #{x.name}"
+    end
+  end
+
+  def print_ibu
+    self.chosen_one = []
+    self.ibus.each do |x|
+      self.chosen_one.push(x)
+    end
+    self.chosen_one.shuffle.first(10).each do |x|
+      puts "#{x.brewery} #{x.name}"
+    end
+  end
 end
 
 
 finder = Find_Beers.new
 finder.get_data
-if finder.user_beer.ibu == "" && finder.user_beer.abv == ""
-
+if (finder.user_beer.ibu == "" || finder.user_beer.ibu == "0") && (finder.user_beer.abv == "" || finder.user_beer.abv == "0")
+  finder.search_style
+  finder.print_styles
+elsif (finder.user_beer.ibu == "" || finder.user_beer.ibu == 0) 
   finder.search_abv
-elsif
-
-finder.search_abv
-finder.search_hops
-finder.compare
+  finder.print_abv
+elsif (finder.user_beer.abv == "" || finder.user_beer.abv == "0")
+  finder.search_ibu
+  finder.print_ibu
+else
+  finder.search_abv
+  finder.search_hops
+  finder.compare
+end
