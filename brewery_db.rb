@@ -24,7 +24,7 @@ class Find_Beers
     brewery_db = BreweryDB::Client.new do |config|
       config.api_key = "4f7bf24d4106c5da74ca6a05b276a883"
     end
-    puts "Enter the name of the beer you would like to use:"
+    puts "Enter the name of a beer that you like:"
     key = gets.chomp
     array = []
     beer_in = Beer.new
@@ -36,9 +36,6 @@ class Find_Beers
     beer_in.ibu = result["ibu"].to_i
     beer_in.style = result["style"]["id"]
     self.user_beer = beer_in
-    puts beer_in.style
-    puts beer_in.ibu
-    puts beer_in.abv
   end
 
   def smart_search
@@ -68,20 +65,31 @@ class Find_Beers
         unless brewery.nil?
           beer_in.brewery = brewery[0].to_h["name"]
         end
-        self.chosen_ones.push(beer_in)
+        if self.user_beer.id != beer_in.id && self.chosen_ones.include?(beer_in) != true
+          self_include = true
+          self.chosen_ones.each do |x|
+            if x.id == beer_in.id
+              self_include = false
+            end
+          end
+          if self_include
+            self.chosen_ones.push(beer_in)
+          end
+        end
         ibu_low -= 1
         ibu_high += 1
         abv_low -= 0.1
         abv_high += 0.1
       end
     end
-    self.chosen_ones.each do |x|
-      puts "#{x.brewery}: #{x.name}, abv: #{x.abv}, ibu: #{x.ibu}"
+    count = 1
+    puts "We recommend that you try the following beers:"
+    self.chosen_ones.first(10).each do |x|
+      puts "#{count}. #{x.brewery}: #{x.name}, abv: #{x.abv}, ibu: #{x.ibu}"
+      count += 1
     end
   end
 end
-
-
 
 finder = Find_Beers.new
 finder.get_data
